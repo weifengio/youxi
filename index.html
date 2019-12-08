@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<style type="text/css">
+    canvas {
+        display: block;
+        margin: 10px auto;
+        border: 2px dashed red;
+        background: ;
+    }
+    header {
+            display: block;
+            margin: 0 auto;
+            width: 500px;
+            text-align: center;
+        }
+    * {
+            margin: 0;
+            padding: 0;
+        }
+    header h2{
+            font-family: Arial;
+            font-weight: bold;
+        }
+</style>
+
+<body>
+    <header>
+        <h2>贪吃蛇</h2>
+        <input type="button" value="开始游戏" onclick="javascript:start();" id="newGameButton" />&nbsp;&nbsp;
+        <input type="button" value="暂停" id="stopOrPlay" onclick="playOrStop()" />
+    </header>
+
+    <div style="text-align:center;margin-bottom:20px">
+        游戏难度：
+        <select name="level">
+                <option value="10">简单</option>    
+                <option value="30">中等</option> 
+                <option value="100">困难</option> 
+        </select> 
+    </div>
+
+    <canvas id="canvas" width="500" height="600">
+    </canvas>
+    <br>
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+
+    <script type="text/javascript">
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var score = 0;   //分数
+        var interval;   //定时器
+        var flag = true;
+        var Block = function(col, row, size) {
+            this.col = col;
+            this.row = row;
+            this.size = size;
+            this.color = ["red", "green", "yellow", "fuchsia", "cyan",
+                "chartreuse", "darkgreen", "greenyellow"
+            ];
+        }
+
+        // 为蛇身的块定义draw方法
+        Block.prototype.draw = function() {
+            color = ranReverseArray(this.color);
+            var startPoint = 0;
+            for (var i = 0; i < color.length; i++) {
+                ctx.fillStyle = color[i];
+                ctx.beginPath();
+                ctx.moveTo(this.col * this.size + this.size / 2, this.row * this.size + this.size / 2);
+                ctx.arc(this.col * this.size + this.size / 2, this.row * this.size + this.size / 2,
+                    this.size / 2, startPoint, startPoint + Math.PI / 4, false);
+                ctx.fill();
+                startPoint += Math.PI / 4;
+            }
+            // 彩色蛇身
+            function ranReverseArray(oldArray) {
+                var newArray = [];
+                var len = oldArray.length;
+                var ranNumber, flag;
+                for (let i = 0; i < oldArray.length; i++) {
+                    while (true) {
+                        ranNumber = Math.floor(Math.random() * len);
+                        flag = true;
+                        for (let j = 0; j < i; j++) {
+                            if (newArray[j] == oldArray[ranNumber]) {
+                                flag = false;
+                                break;
+                            }
+                        }
+                        if (flag) break;
+                    }
+                    newArray[i] = oldArray[ranNumber];
+                }
+                return newArray;
+            }
+        }
+
+        var snake = {
+            body: [
+                new Block(23, 20, 10), new Block(22, 20, 10), new Block(21, 20, 10), new Block(20, 20, 10)
+            ],
+            direction: "right",
+            speed: parseInt(document.getElementsByName('level')[0].value)   //定义蛇的速度
+        };
+        snake.draw = function() {
+            for (var i = 0; i < this.body.length; i++) {
+                this.body[i].draw();
+            }
+        };
+
+        //以下函数的功能是通过判断分数来加快蛇的速度
+        function quicken(){
+            //先保留原来的蛇速度
+            var speed1 = snake.speed;
+            if(score==20){        //控制蛇加速
+                snake.speed += 10;
+                console.log(snake.speed);
+            }else if(score==40){
+                     snake.speed += 10;
+                }else if(score==60){
+                    snake.speed += 10;
+                }else if(score>=100){
+                    snake.speed += 20;
+                }
+            //如果蛇的速度发生了改变,就重新设置定时器
+            if(snake.speed != speed1){
+                if(interval){
+                    clearInterval(interval);
+                }
+                interval = setInterval(beginGame, Math.floor(3000/snake.speed));
+            }
+        }
+        
+        snake.move = function() {
+            var head = this.body[0];
+            if (snake.direction == "right") {
+                var newHead = new Block(head.col + 1, head.row, head.size);
+            }
+            if (snake.direction == "left") {
+                var newHead = new Block(head.col - 1, head.row, head.size);
+            }
+            if (snake.direction == "up") {
+                var newHead = new Block(head.col, head.row - 1, head.size);
+            }
+            if (snake.direction == "down") {
+                var newHead = new Block(head.col, head.row + 1, head.size);
+            }
+            //判断是否碰壁
+            if (newHead.col < 0 || newHead.col > 49) {
+
+                gameover();
+            }
+            if (newHead.row < 0 || newHead.row > 59) {
+
+                gameover();
+            }
+            snake.body.unshift(newHead);
+            if (newHead.col == apple.posX && newHead.row == apple.posY) {
+                //如果吃到苹果了
+                score = score + 10;
+                quicken();
+                while (true) { //保证新苹果不在蛇身上
+                    var checkApple = false;
+                    apple.posX = Math.floor(Math.random() * 50);
+                    apple.posY = Math.floor(Math.random() * 60);
+                    for (var i = 0; i < this.body.length; i++) {
+                        if (this.body[i].col == apple.posX && this.body[i].row == apple.posY) {
+                            checkApple = true;
+                        }
+                    }
+                    if (!checkApple) break;
+                }
+            } else {
+                snake.body.pop();
+            }
+            if (newHead.col == this.body[this.body.length - 1].x &&
+                newHead.row == this.body[this.body.length - 1].y) {
+                gameover();
+            }
+        }
+
+        function gameover() {
+            clearInterval(interval);
+            ctx.font = "60px Comic Sans Ms";
+            ctx.fillStyle = "Orange";
+            ctx.shadowBlue = 5;
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+            ctx.shadowColor = "red";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("GAME OVER", 250, 300);
+        }
+        var apple = {
+            posX: Math.floor(Math.random() * 50),
+            posY: Math.floor(Math.random() * 60),
+            sizeR: 5
+        }
+        apple.draw = function() {
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc((this.posX * 2 + 1) * this.sizeR, (this.posY * 2 + 1) * this.sizeR, this.sizeR, 0, 360, false);
+            ctx.fill();
+        }
+
+        $("body").keydown(function(event) {
+            if (event.keyCode == 37 && snake.direction != "right") {
+                snake.direction = "left";
+            }
+            if (event.keyCode == 38 && snake.direction != "down") {
+                snake.direction = "up";
+            }
+            if (event.keyCode == 39 && snake.direction != "left") {
+                snake.direction = "right";
+            }
+            if (event.keyCode == 40 && snake.direction != "up") {
+                snake.direction = "down";
+            }
+        });
+        var culTime = 0;
+
+        function beginGame() {
+            ctx.clearRect(0, 0, 500, 600);
+            culTime++;   //统计次数
+            if (culTime == Math.floor(1000/(Math.floor(3000/snake.speed)))) {
+                gameTime.second++;
+                culTime = 0;
+                gameTime.show();
+            }
+            gameTime.draw();   //画计时
+            fenshu();    //画分数
+            snake.draw();
+            snake.move();
+            apple.draw();
+            ctx.strokeRect(0, 0, 500, 600);
+        }
+
+        //负责启动游戏的函数
+        function start(){
+            if(flag){
+                 snake.speed = parseInt(document.getElementsByName('level')[0].value);
+                //通过蛇的速度来控制执行函数的时间,速度越大,执行函数的时间就越快
+                 interval = setInterval(beginGame, Math.floor(3000/snake.speed));
+                 flag = false;
+            }
+        }
+
+        //以下代码设置游戏的“暂停”和“开始”
+        var stop = true;
+
+        function playOrStop() {
+            if (stop) {
+                clearInterval(interval);
+                $("#stopOrPlay").attr("value", "开始");
+                stop = false;
+            } else {
+                interval = setInterval(beginGame,  Math.floor(3000/snake.speed));
+                $("#stopOrPlay").attr("value", "暂停");
+                stop = true;
+            }
+        }
+        //以下代码是用来计时的
+        var MyTime = function(hour, minute, second) {
+            this.hour = hour;
+            this.minute = minute;
+            this.second = second;
+            this.myTime = "";
+            this.show = function() {
+                if (this.second == 60) {
+                    this.second = 0;
+                    this.minute = this.minute + 1;
+                }
+                if (this.minute == 60) {
+                    this.minute = 0;
+                    this.hour = this.hour + 1;
+                }
+                this.myTime = "";
+                if (this.hour < 10) {
+                    this.myTime = this.myTime + "0" + this.hour + ":";
+                } else {
+                    this.myTime = this.myTime + this.hour + ":";
+                }
+                if (this.minute < 10) {
+                    this.myTime = this.myTime + "0" + this.minute + ":";
+                } else {
+                    this.myTime = this.myTime + this.minute + ":";
+                }
+                if (this.second < 10) {
+                    this.myTime = this.myTime + "0" + this.second;
+                } else {
+                    this.myTime = this.myTime + this.second + "";
+                }
+            };
+            this.draw = function() {
+                ctx.fillStyle = "Orange";
+                ctx.textBaseline = "top";
+                ctx.textAlign = "left";
+                ctx.font = "20px Arial";
+                ctx.fillText("计时:" + this.myTime, 10, 30);
+            }
+        }
+        var gameTime = new MyTime(0, 0, 0);
+
+        //以下函数是用来画分数的
+        function fenshu(){
+            ctx.fillStyle = "Orange";
+            ctx.textBaseline = "top";
+            ctx.textAlign = "left";
+            ctx.font = "20px Arial";
+            ctx.fillText("score:" + score, 10, 10);
+        }
+    </script>
+</body>
+
+</html>
